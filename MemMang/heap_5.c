@@ -90,12 +90,14 @@
 #endif
 
 /* Block sizes must not get too small. */
+// 分配一块内存，若剩余的内存大于此值，则需要将内存进行切分
 #define heapMINIMUM_BLOCK_SIZE    ( ( size_t ) ( xHeapStructSize << 1 ) )
 
 /* Assumes 8bit bytes! */
 #define heapBITS_PER_BYTE         ( ( size_t ) 8 )
 
 /* Max value that fits in a size_t type. */
+// 最大可分给的内存值
 #define heapSIZE_MAX              ( ~( ( size_t ) 0 ) )
 
 /* Check if multiplying a and b will result in overflow. */
@@ -157,8 +159,8 @@
  * of their memory address. */
 typedef struct A_BLOCK_LINK
 {
-    struct A_BLOCK_LINK * pxNextFreeBlock; /**< The next free block in the list. */
-    size_t xBlockSize;                     /**< The size of the free block. */
+    struct A_BLOCK_LINK *pxNextFreeBlock; /**< The next free block in the list. */ // 下一个对齐的内存块的首地址，是BlockLink_t类型的地址
+    size_t xBlockSize; /**< The size of the free block. */                         // 包括了BlockLink_t头部和实际可用的内存长度
 } BlockLink_t;
 
 /*-----------------------------------------------------------*/
@@ -195,9 +197,9 @@ PRIVILEGED_DATA static BlockLink_t * pxEnd = NULL;
 /* Keeps track of the number of calls to allocate and free memory as well as the
  * number of free bytes remaining, but says nothing about fragmentation. */
 PRIVILEGED_DATA static size_t xFreeBytesRemaining = ( size_t ) 0U;
-PRIVILEGED_DATA static size_t xMinimumEverFreeBytesRemaining = ( size_t ) 0U;
-PRIVILEGED_DATA static size_t xNumberOfSuccessfulAllocations = ( size_t ) 0U;
-PRIVILEGED_DATA static size_t xNumberOfSuccessfulFrees = ( size_t ) 0U;
+PRIVILEGED_DATA static size_t xMinimumEverFreeBytesRemaining = ( size_t ) 0U;   // 记录最小的剩余内存大小, 每次分配内存后判断更新
+PRIVILEGED_DATA static size_t xNumberOfSuccessfulAllocations = ( size_t ) 0U;   // 记录成功分配内存的次数
+PRIVILEGED_DATA static size_t xNumberOfSuccessfulFrees = ( size_t ) 0U;         // 记录成功释放内存的次数
 
 #if ( configENABLE_HEAP_PROTECTOR == 1 )
 
@@ -211,7 +213,7 @@ PRIVILEGED_DATA static size_t xNumberOfSuccessfulFrees = ( size_t ) 0U;
 #endif /* configENABLE_HEAP_PROTECTOR */
 
 /*-----------------------------------------------------------*/
-
+// 内存分配接口函数，入参为需要分配的内存总大小
 void * pvPortMalloc( size_t xWantedSize )
 {
     BlockLink_t * pxBlock;
@@ -229,17 +231,21 @@ void * pvPortMalloc( size_t xWantedSize )
     {
         /* The wanted size must be increased so it can contain a BlockLink_t
          * structure in addition to the requested amount of bytes. */
+        // 申请的内存大小不能溢出可分配的最大内存大小
         if( heapADD_WILL_OVERFLOW( xWantedSize, xHeapStructSize ) == 0 )
         {
+            // 内存申请时会自动绑定一个 BlockLink_t 结构体，所以需要将申请的内存大小加上 BlockLink_t 结构体的大小
             xWantedSize += xHeapStructSize;
 
             /* Ensure that blocks are always aligned to the required number
              * of bytes. */
-            if( ( xWantedSize & portBYTE_ALIGNMENT_MASK ) != 0x00 )
+            if ((xWantedSize & portBYTE_ALIGNMENT_MASK) != 0x00) // 申请的内存大小需要字节对齐，为portBYTE_ALIGNMENT_MASK的整数倍
             {
                 /* Byte alignment required. */
+                // 内存对齐需要增加申请的字节个数
                 xAdditionalRequiredSize = portBYTE_ALIGNMENT - ( xWantedSize & portBYTE_ALIGNMENT_MASK );
 
+                // 内存申请大小不能溢出可分配的最大内存大小
                 if( heapADD_WILL_OVERFLOW( xWantedSize, xAdditionalRequiredSize ) == 0 )
                 {
                     xWantedSize += xAdditionalRequiredSize;
@@ -264,14 +270,17 @@ void * pvPortMalloc( size_t xWantedSize )
         mtCOVERAGE_TEST_MARKER();
     }
 
+    // Suspend其他task，禁止任务切换
     vTaskSuspendAll();
     {
         /* Check the block size we are trying to allocate is not so large that the
          * top bit is set.  The top bit of the block size member of the BlockLink_t
          * structure is used to determine who owns the block - the application or
          * the kernel, so it must be free. */
+        // 检查申请内存大小是否合法，最高位bit不能时1，如32bit的最高位bit为1时，表示该内存块已经被分配
         if( heapBLOCK_SIZE_IS_VALID( xWantedSize ) != 0 )
         {
+            // 申请的内存大小不能超过剩余的可用内存大小
             if( ( xWantedSize > 0 ) && ( xWantedSize <= xFreeBytesRemaining ) )
             {
                 /* Traverse the list from the start (lowest address) block until
@@ -280,6 +289,7 @@ void * pvPortMalloc( size_t xWantedSize )
                 pxBlock = heapPROTECT_BLOCK_POINTER( xStart.pxNextFreeBlock );
                 heapVALIDATE_BLOCK_POINTER( pxBlock );
 
+                // 遍历空闲内存块链表，找到第一个xBlockSize比xWantedSize大的内存块
                 while( ( pxBlock->xBlockSize < xWantedSize ) && ( pxBlock->pxNextFreeBlock != heapPROTECT_BLOCK_POINTER( NULL ) ) )
                 {
                     pxPreviousBlock = pxBlock;
@@ -289,10 +299,12 @@ void * pvPortMalloc( size_t xWantedSize )
 
                 /* If the end marker was reached then a block of adequate size
                  * was not found. */
+                // 不是遍历完了列表的退出，而是找到了一个xBlockSize比xWantedSize大的内存块
                 if( pxBlock != pxEnd )
                 {
                     /* Return the memory space pointed to - jumping over the
                      * BlockLink_t structure at its start. */
+                    // 申请到实际可以提供给用户使用的内存地址的起始位置，需要跳过内存块的头部
                     pvReturn = ( void * ) ( ( ( uint8_t * ) heapPROTECT_BLOCK_POINTER( pxPreviousBlock->pxNextFreeBlock ) ) + xHeapStructSize );
                     heapVALIDATE_BLOCK_POINTER( pvReturn );
 
@@ -304,12 +316,14 @@ void * pvPortMalloc( size_t xWantedSize )
                      * two. */
                     configASSERT( heapSUBTRACT_WILL_UNDERFLOW( pxBlock->xBlockSize, xWantedSize ) == 0 );
 
+                    // 若空闲内存块比申请的内存大一个heapMINIMUM_BLOCK_SIZE，将多余的内存块分割出来
                     if( ( pxBlock->xBlockSize - xWantedSize ) > heapMINIMUM_BLOCK_SIZE )
                     {
                         /* This block is to be split into two.  Create a new
                          * block following the number of bytes requested. The void
                          * cast is used to prevent byte alignment warnings from the
                          * compiler. */
+                        // 设置一个新的BlockLink_t结构体，用于存储剩余的空闲内存块，因为pxBlock和xWantedSize之前已经内存对齐了，这里相加必然也是对齐的
                         pxNewBlockLink = ( void * ) ( ( ( uint8_t * ) pxBlock ) + xWantedSize );
                         configASSERT( ( ( ( size_t ) pxNewBlockLink ) & portBYTE_ALIGNMENT_MASK ) == 0 );
 
@@ -319,6 +333,7 @@ void * pvPortMalloc( size_t xWantedSize )
                         pxBlock->xBlockSize = xWantedSize;
 
                         /* Insert the new block into the list of free blocks. */
+                        // 将拆分出来的新的空闲内存块插入到空闲内存块链表中
                         pxNewBlockLink->pxNextFreeBlock = pxPreviousBlock->pxNextFreeBlock;
                         pxPreviousBlock->pxNextFreeBlock = heapPROTECT_BLOCK_POINTER( pxNewBlockLink );
                     }
@@ -327,8 +342,10 @@ void * pvPortMalloc( size_t xWantedSize )
                         mtCOVERAGE_TEST_MARKER();
                     }
 
+                    // 更新剩余的内存大小
                     xFreeBytesRemaining -= pxBlock->xBlockSize;
 
+                    // 若当前剩余的内存大小比之前记录的最小的内存大小还小，则更新内存剩余最小的内存大小记录
                     if( xFreeBytesRemaining < xMinimumEverFreeBytesRemaining )
                     {
                         xMinimumEverFreeBytesRemaining = xFreeBytesRemaining;
@@ -342,6 +359,7 @@ void * pvPortMalloc( size_t xWantedSize )
 
                     /* The block is being returned - it is allocated and owned
                      * by the application and has no "next" block. */
+                    // pxBlock就是要返回的内存块，将其标记为已分配，将pxBlock->xBlockSize的整型的最高bit设置为1，这样做是为了避免释放一个未分配的地址造成的错误!
                     heapALLOCATE_BLOCK( pxBlock );
                     pxBlock->pxNextFreeBlock = heapPROTECT_BLOCK_POINTER( NULL );
                     xNumberOfSuccessfulAllocations++;
@@ -366,8 +384,10 @@ void * pvPortMalloc( size_t xWantedSize )
         /* Prevent compiler warnings when trace macros are not used. */
         ( void ) xAllocatedBlockSize;
     }
+    // 内存分配完成，恢复任务的正常调度
     ( void ) xTaskResumeAll();
 
+    // 内存分配失败，则调用内存申请失败的钩子函数
     #if ( configUSE_MALLOC_FAILED_HOOK == 1 )
     {
         if( pvReturn == NULL )
@@ -385,7 +405,7 @@ void * pvPortMalloc( size_t xWantedSize )
     return pvReturn;
 }
 /*-----------------------------------------------------------*/
-
+// 内存释放函数，pv是用户实际使用的内存地址，需要负向偏移xHeapStructSize，得到BlockLink_t内存块的首地址
 void vPortFree( void * pv )
 {
     uint8_t * puc = ( uint8_t * ) pv;
@@ -401,15 +421,19 @@ void vPortFree( void * pv )
         pxLink = ( void * ) puc;
 
         heapVALIDATE_BLOCK_POINTER( pxLink );
+        // 检查pxLink是否为之前通过pvPortMalloc分配的，这里有个pxLink->xBlockSize的最高位设置为1的检查!
         configASSERT( heapBLOCK_IS_ALLOCATED( pxLink ) != 0 );
+        // 这是分配内存是设置的pxLink->pxNextFreeBlock=NULL，检查指针是否真是指向了一个由pvPortMalloc分配的地址
         configASSERT( pxLink->pxNextFreeBlock == heapPROTECT_BLOCK_POINTER( NULL ) );
 
+        // TODO: 这里就重复判断了，上面都已经Assert判断不是0了
         if( heapBLOCK_IS_ALLOCATED( pxLink ) != 0 )
         {
             if( pxLink->pxNextFreeBlock == heapPROTECT_BLOCK_POINTER( NULL ) )
             {
                 /* The block is being returned to the heap - it is no longer
                  * allocated. */
+                // 将pxLink->xBlockSize的最高位设置为1的标记清零！
                 heapFREE_BLOCK( pxLink );
                 #if ( configHEAP_CLEAR_MEMORY_ON_FREE == 1 )
                 {
@@ -425,8 +449,10 @@ void vPortFree( void * pv )
                 vTaskSuspendAll();
                 {
                     /* Add this block to the list of free blocks. */
+                    // 释放的内存量回收到剩余的内存总量中
                     xFreeBytesRemaining += pxLink->xBlockSize;
                     traceFREE( pv, pxLink->xBlockSize );
+                    // 将释放的内存地址重选插入到空闲的内存链表中
                     prvInsertBlockIntoFreeList( ( ( BlockLink_t * ) pxLink ) );
                     xNumberOfSuccessfulFrees++;
                 }
@@ -444,25 +470,25 @@ void vPortFree( void * pv )
     }
 }
 /*-----------------------------------------------------------*/
-
+// 获取当前Heap剩余的字节
 size_t xPortGetFreeHeapSize( void )
 {
     return xFreeBytesRemaining;
 }
 /*-----------------------------------------------------------*/
-
+// 获取曾经分配内存时的最小剩余值---> 用于设置总体Heap的大小，避免溢出的风险
 size_t xPortGetMinimumEverFreeHeapSize( void )
 {
     return xMinimumEverFreeBytesRemaining;
 }
 /*-----------------------------------------------------------*/
-
+// 将当前Heap剩余的字节数设置为曾经分配内存的最小值，目前该函数没有被调用，在内存申请时之间使用赋值了
 void xPortResetHeapMinimumEverFreeHeapSize( void )
 {
     xMinimumEverFreeBytesRemaining = xFreeBytesRemaining;
 }
 /*-----------------------------------------------------------*/
-
+// 申请内存并将申请到的内存初始化为0
 void * pvPortCalloc( size_t xNum,
                      size_t xSize )
 {
@@ -481,7 +507,7 @@ void * pvPortCalloc( size_t xNum,
     return pv;
 }
 /*-----------------------------------------------------------*/
-
+// 将释放的内存重选插入到空闲的内存链表中
 static void prvInsertBlockIntoFreeList( BlockLink_t * pxBlockToInsert ) /* PRIVILEGED_FUNCTION */
 {
     BlockLink_t * pxIterator;
@@ -489,6 +515,7 @@ static void prvInsertBlockIntoFreeList( BlockLink_t * pxBlockToInsert ) /* PRIVI
 
     /* Iterate through the list until a block is found that has a higher address
      * than the block being inserted. */
+    // 找到第一个内存地址大于pxBlockToInsert的位置，插入位置在该节点与上一个节点中间
     for( pxIterator = &xStart; heapPROTECT_BLOCK_POINTER( pxIterator->pxNextFreeBlock ) < pxBlockToInsert; pxIterator = heapPROTECT_BLOCK_POINTER( pxIterator->pxNextFreeBlock ) )
     {
         /* Nothing to do here, just iterate to the right position. */
@@ -501,8 +528,10 @@ static void prvInsertBlockIntoFreeList( BlockLink_t * pxBlockToInsert ) /* PRIVI
 
     /* Do the block being inserted, and the block it is being inserted after
      * make a contiguous block of memory? */
+    // pxIterator是pxBlockToInsert的前一个内存块节点
     puc = ( uint8_t * ) pxIterator;
 
+    // 判断前一个内存块节点 + 内存块长度是否正好与插入的节点地址相等，也就是内存连续了，可以拼接
     if( ( puc + pxIterator->xBlockSize ) == ( uint8_t * ) pxBlockToInsert )
     {
         pxIterator->xBlockSize += pxBlockToInsert->xBlockSize;
@@ -517,21 +546,25 @@ static void prvInsertBlockIntoFreeList( BlockLink_t * pxBlockToInsert ) /* PRIVI
      * make a contiguous block of memory? */
     puc = ( uint8_t * ) pxBlockToInsert;
 
+    // 插入释放的内存节点后，与后一个内存节点的地址连续了
     if( ( puc + pxBlockToInsert->xBlockSize ) == ( uint8_t * ) heapPROTECT_BLOCK_POINTER( pxIterator->pxNextFreeBlock ) )
     {
         if( heapPROTECT_BLOCK_POINTER( pxIterator->pxNextFreeBlock ) != pxEnd )
         {
             /* Form one big block from the two blocks. */
+            // 将pxBlockToInsert插入位置的后一个节点与pxBlockToInsert合并
             pxBlockToInsert->xBlockSize += heapPROTECT_BLOCK_POINTER( pxIterator->pxNextFreeBlock )->xBlockSize;
             pxBlockToInsert->pxNextFreeBlock = heapPROTECT_BLOCK_POINTER( pxIterator->pxNextFreeBlock )->pxNextFreeBlock;
         }
         else
         {
+            // 若已经到了最后，则设置pxNextFreeBlock为pxEnd
             pxBlockToInsert->pxNextFreeBlock = heapPROTECT_BLOCK_POINTER( pxEnd );
         }
     }
     else
     {
+        // 与插入位置的后一个节点不连续，则插入，更新其Next节点
         pxBlockToInsert->pxNextFreeBlock = pxIterator->pxNextFreeBlock;
     }
 
@@ -539,6 +572,7 @@ static void prvInsertBlockIntoFreeList( BlockLink_t * pxBlockToInsert ) /* PRIVI
      * before and the block after, then it's pxNextFreeBlock pointer will have
      * already been set, and should not be set here as that would make it point
      * to itself. */
+    // 插入的节点与前面的节点的地址不连续，则将前一个节点的pxNextFreeBlock设置为pxBlockToInsert
     if( pxIterator != pxBlockToInsert )
     {
         pxIterator->pxNextFreeBlock = heapPROTECT_BLOCK_POINTER( pxBlockToInsert );
@@ -549,18 +583,25 @@ static void prvInsertBlockIntoFreeList( BlockLink_t * pxBlockToInsert ) /* PRIVI
     }
 }
 /*-----------------------------------------------------------*/
-
+// 对pxHeapRegions指向的数组中的多个内存区域进行链表化的初始化
 void vPortDefineHeapRegions( const HeapRegion_t * const pxHeapRegions ) /* PRIVILEGED_FUNCTION */
 {
+    // 分区的首个空闲内存块指针
     BlockLink_t * pxFirstFreeBlockInRegion = NULL;
+    // 执行前一个分区的空闲块的pxEnd
     BlockLink_t * pxPreviousFreeBlock;
+    // 当前分区内存首地址按照字节对齐后的首地址
     portPOINTER_SIZE_TYPE xAlignedHeap;
+    // 分区的内存大小和所有分区的总的内存大小
     size_t xTotalRegionSize, xTotalHeapSize = 0;
+    // 分区索引
     BaseType_t xDefinedRegions = 0;
+    // 临时变量记录分区的首地址（内存对齐之前的地址）
     portPOINTER_SIZE_TYPE xAddress;
     const HeapRegion_t * pxHeapRegion;
 
     /* Can only call once! */
+    // 只能调用一次, 也就是初始化的时候用的这一次，后面不可再调用此函数!!!
     configASSERT( pxEnd == NULL );
 
     #if ( configENABLE_HEAP_PROTECTOR == 1 )
@@ -569,27 +610,36 @@ void vPortDefineHeapRegions( const HeapRegion_t * const pxHeapRegions ) /* PRIVI
     }
     #endif
 
+    // 获取第一个分区的指针
     pxHeapRegion = &( pxHeapRegions[ xDefinedRegions ] );
 
+    // 最后一个分区通过设置xSizeInBytes为0，结束循环
     while( pxHeapRegion->xSizeInBytes > 0 )
     {
+        // 当前分区中设置的分区大小
         xTotalRegionSize = pxHeapRegion->xSizeInBytes;
 
         /* Ensure the heap region starts on a correctly aligned boundary. */
+        // 当前分区的首地址
         xAddress = ( portPOINTER_SIZE_TYPE ) pxHeapRegion->pucStartAddress;
 
+        // 分区的起始地址必须是字节对齐的边界，对齐的字节个数通过portBYTE_ALIGNMENT定义
         if( ( xAddress & portBYTE_ALIGNMENT_MASK ) != 0 )
         {
             xAddress += ( portBYTE_ALIGNMENT - 1 );
             xAddress &= ~( portPOINTER_SIZE_TYPE ) portBYTE_ALIGNMENT_MASK;
 
             /* Adjust the size for the bytes lost to alignment. */
+            // 因为地址偏移了，所以需要减去偏移的字节数
             xTotalRegionSize -= ( size_t ) ( xAddress - ( portPOINTER_SIZE_TYPE ) pxHeapRegion->pucStartAddress );
         }
 
+        // 对齐后的分区首地址
         xAlignedHeap = xAddress;
 
         /* Set xStart if it has not already been set. */
+        // 如果是初次分配内存，那么初始化xStart指向的内容，xStart指向首个内存块
+        // 注意，xStart是一个全局变量，用于记录首个内存块的地址信息，并不会占用Heap的内存空间
         if( xDefinedRegions == 0 )
         {
             /* xStart is used to hold a pointer to the first item in the list of
@@ -599,11 +649,12 @@ void vPortDefineHeapRegions( const HeapRegion_t * const pxHeapRegions ) /* PRIVI
         }
         else
         {
-            /* Should only get here if one region has already been added to the
-             * heap. */
+            // 若不是初次分配，则需要判断pxEnd是否合法
+            /* Should only get here if one region has already been added to the heap. */
             configASSERT( pxEnd != heapPROTECT_BLOCK_POINTER( NULL ) );
 
             /* Check blocks are passed in with increasing start addresses. */
+            // 分配的内存起始地址必须比上一个尾部要大
             configASSERT( ( size_t ) xAddress > ( size_t ) pxEnd );
         }
 
@@ -623,6 +674,7 @@ void vPortDefineHeapRegions( const HeapRegion_t * const pxHeapRegions ) /* PRIVI
 
         /* pxEnd is used to mark the end of the list of free blocks and is
          * inserted at the end of the region space. */
+        // 这里再确定一个尾部的节点地址pxEnd
         xAddress = xAlignedHeap + ( portPOINTER_SIZE_TYPE ) xTotalRegionSize;
         xAddress -= ( portPOINTER_SIZE_TYPE ) xHeapStructSize;
         xAddress &= ~( ( portPOINTER_SIZE_TYPE ) portBYTE_ALIGNMENT_MASK );
@@ -633,17 +685,21 @@ void vPortDefineHeapRegions( const HeapRegion_t * const pxHeapRegions ) /* PRIVI
         /* To start with there is a single free block in this region that is
          * sized to take up the entire heap region minus the space taken by the
          * free block structure. */
+        // 设置首个内存块的地址信息，当前内存块的大小& pxNextFreeBlock指向pxEnd
         pxFirstFreeBlockInRegion = ( BlockLink_t * ) xAlignedHeap;
         pxFirstFreeBlockInRegion->xBlockSize = ( size_t ) ( xAddress - ( portPOINTER_SIZE_TYPE ) pxFirstFreeBlockInRegion );
         pxFirstFreeBlockInRegion->pxNextFreeBlock = heapPROTECT_BLOCK_POINTER( pxEnd );
 
         /* If this is not the first region that makes up the entire heap space
          * then link the previous region to this region. */
+        // 如果不是第一个分区，那么需要将上一个分区的尾部指向当前分区的首部，用于将多个分区的内存块连起来!!!
         if( pxPreviousFreeBlock != NULL )
         {
+            // 上一个的尾接上当前的首
             pxPreviousFreeBlock->pxNextFreeBlock = heapPROTECT_BLOCK_POINTER( pxFirstFreeBlockInRegion );
         }
 
+        // 统计内存块分配的总大小
         xTotalHeapSize += pxFirstFreeBlockInRegion->xBlockSize;
 
         #if ( configENABLE_HEAP_PROTECTOR == 1 )
@@ -657,6 +713,7 @@ void vPortDefineHeapRegions( const HeapRegion_t * const pxHeapRegions ) /* PRIVI
         #endif
 
         /* Move onto the next HeapRegion_t structure. */
+        // 更新大下一个内存块继续初始化
         xDefinedRegions++;
         pxHeapRegion = &( pxHeapRegions[ xDefinedRegions ] );
     }
@@ -668,7 +725,7 @@ void vPortDefineHeapRegions( const HeapRegion_t * const pxHeapRegions ) /* PRIVI
     configASSERT( xTotalHeapSize );
 }
 /*-----------------------------------------------------------*/
-
+// 获取Heap的状态统计，详见HeapStats_t结构体定义
 void vPortGetHeapStats( HeapStats_t * pxHeapStats )
 {
     BlockLink_t * pxBlock;
@@ -712,10 +769,11 @@ void vPortGetHeapStats( HeapStats_t * pxHeapStats )
     }
     ( void ) xTaskResumeAll();
 
-    pxHeapStats->xSizeOfLargestFreeBlockInBytes = xMaxSize;
-    pxHeapStats->xSizeOfSmallestFreeBlockInBytes = xMinSize;
-    pxHeapStats->xNumberOfFreeBlocks = xBlocks;
+    pxHeapStats->xSizeOfLargestFreeBlockInBytes = xMaxSize;     // 记录空闲内存的最大块大小
+    pxHeapStats->xSizeOfSmallestFreeBlockInBytes = xMinSize;    // 记录空闲内存的最小快大小
+    pxHeapStats->xNumberOfFreeBlocks = xBlocks;                 // 记录总的空闲内存块的个数
 
+    // 拿到实时的内存分配相关变量，避免的读取的时候被其他任务修改
     taskENTER_CRITICAL();
     {
         pxHeapStats->xAvailableHeapSpaceInBytes = xFreeBytesRemaining;
@@ -732,6 +790,7 @@ void vPortGetHeapStats( HeapStats_t * pxHeapStats )
  * This function must be called by the application before restarting the
  * scheduler.
  */
+// 在初始化时重置Heap内存管理的相应状态，只能在初始化时执行此操作
 void vPortHeapResetState( void )
 {
     pxEnd = NULL;

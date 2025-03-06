@@ -401,11 +401,13 @@ static void prvInitialiseHeap( void )
         { NULL,                                                0                 }
     };
 
-    /* Sanity check that the sizes and offsets defined actually fit into the
-     * array. */
+    /* 定义了一个易失性变量 ulAdditionalOffset，并将其初始化为 19。使用 volatile 关键字是为了防止编译器优化，确保每次访问该变量时都从内存中读取。这个变量的存在是为了避免在使用 configASSERT 时出现“条件总是为真”的警告 */
+    // 这里提供了一个防止编译器检查报错的技巧，即定义一个无用的变量，然后在 configASSERT 中使用这个变量，这样就不会报错了
+    /* Sanity check that the sizes and offsets defined actually fit into the array. */
     configASSERT( ( ulAdditionalOffset + mainREGION_1_SIZE + mainREGION_2_SIZE + mainREGION_3_SIZE ) < configTOTAL_HEAP_SIZE );
 
     /* Prevent compiler warnings when configASSERT() is not defined. */
+    // 显式地将 ulAdditionalOffset 转换为 void，以防止在未使用 configASSERT 时编译器产生未使用变量的警告，未使用的变量都是这么处理的
     ( void ) ulAdditionalOffset;
 
     vPortDefineHeapRegions( xHeapRegions );

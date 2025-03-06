@@ -8,3 +8,8 @@ WIN32-MSVC: Visual Studio平台相关的接口文件, port.c/portmacro.h/FreeRTO
 MemMang: 内存管理文件, heap_1~heap_5
 FreeRTOS-Plus-Trace: 原FreeRTOS-Plus中关于Trace的文件依赖
 Common/include: 头文件相关依赖
+
+目前代码使用的FreeRTOS的版本为: V11.1.0+
+问题：如何查看当前使用的FreeRTOS版本?
+在task.h文件中查看tskKERNEL_VERSION_NUMBER的定义即可知道，例如下面的宏定义:
+#define tskKERNEL_VERSION_NUMBER                      "V11.1.0+"
