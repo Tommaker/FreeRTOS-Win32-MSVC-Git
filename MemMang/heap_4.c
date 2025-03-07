@@ -452,7 +452,7 @@ void * pvPortCalloc( size_t xNum,
     return pv;
 }
 /*-----------------------------------------------------------*/
-
+// heap_4.c内存分配机制是针对一个连续的内存分区进行内存分配，ucHeap
 static void prvHeapInit( void ) /* PRIVILEGED_FUNCTION */
 {
     BlockLink_t * pxFirstFreeBlock;

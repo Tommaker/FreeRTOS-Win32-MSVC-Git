@@ -55,7 +55,8 @@
 #endif
 
 /*-----------------------------------------------------------*/
-
+// heap_3.c只是简单的封装了标准C标准库中的malloc和free函数
+// 在调用标准malloc和free的前增加了挂起调度器，在操作后再恢复调度器
 void * pvPortMalloc( size_t xWantedSize )
 {
     void * pvReturn;

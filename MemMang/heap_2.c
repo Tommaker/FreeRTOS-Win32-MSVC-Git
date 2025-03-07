@@ -60,6 +60,7 @@
 #define configADJUSTED_HEAP_SIZE    ( configTOTAL_HEAP_SIZE - portBYTE_ALIGNMENT )
 
 /* Assumes 8bit bytes! */
+// 每个字节占用多少个bit
 #define heapBITS_PER_BYTE           ( ( size_t ) 8 )
 
 /* Max value that fits in a size_t type. */
@@ -75,15 +76,21 @@
  * the allocation status of a block.  When MSB of the xBlockSize member of
  * an BlockLink_t structure is set then the block belongs to the application.
  * When the bit is free the block is still part of the free heap space. */
+// sizt_t类型的xBlockSize的最高位用于标记该内存块是否已经分配
 #define heapBLOCK_ALLOCATED_BITMASK    ( ( ( size_t ) 1 ) << ( ( sizeof( size_t ) * heapBITS_PER_BYTE ) - 1 ) )
+// 申请内存的大小的xBlockSize的最高位用于标记该内存块是否已经分配，在分配过程中，最高位bit必须为0
 #define heapBLOCK_SIZE_IS_VALID( xBlockSize )    ( ( ( xBlockSize ) & heapBLOCK_ALLOCATED_BITMASK ) == 0 )
+// 若申请内存的大小的xBlockSize的最高位为1，则该内存块已经被分配
 #define heapBLOCK_IS_ALLOCATED( pxBlock )        ( ( ( pxBlock->xBlockSize ) & heapBLOCK_ALLOCATED_BITMASK ) != 0 )
+// 将pxBlock->xBlockSize的最高位设置为1，标记为已分配
 #define heapALLOCATE_BLOCK( pxBlock )            ( ( pxBlock->xBlockSize ) |= heapBLOCK_ALLOCATED_BITMASK )
+// 将pxBlock->xBlockSize的最高位清零，标记为未分配
 #define heapFREE_BLOCK( pxBlock )                ( ( pxBlock->xBlockSize ) &= ~heapBLOCK_ALLOCATED_BITMASK )
 
 /*-----------------------------------------------------------*/
 
 /* Allocate the memory for the heap. */
+// 应用开发者可以外部定义ucHeap数组，用于存放RTOS的堆内存，若应用开发者未定义，则RTOS会自动定义一个ucHeap数组
 #if ( configAPPLICATION_ALLOCATED_HEAP == 1 )
 
 /* The application writer has already defined the array used for the RTOS
@@ -102,8 +109,10 @@ typedef struct A_BLOCK_LINK
     size_t xBlockSize;                     /*<< The size of the free block. */
 } BlockLink_t;
 
-
+// 记录 BlockLink_t结构体大小+在经过字节对齐后的大小
 static const size_t xHeapStructSize = ( ( sizeof( BlockLink_t ) + ( size_t ) ( portBYTE_ALIGNMENT - 1 ) ) & ~( ( size_t ) portBYTE_ALIGNMENT_MASK ) );
+
+// 定义最小的内存块大小，小于这个值的内存块不会被分割
 #define heapMINIMUM_BLOCK_SIZE    ( ( size_t ) ( xHeapStructSize * 2 ) )
 
 /* Create a couple of list links to mark the start and end of the list. */
@@ -132,6 +141,7 @@ static void prvHeapInit( void ) PRIVILEGED_FUNCTION;
  * the block.  Small blocks at the start of the list and large blocks at the end
  * of the list.
  */
+// heap_2.c中空闲的内存仅插入，不做合并处理，也就是下次只能分配等于或小于当前空闲内存块大小的内存
 #define prvInsertBlockIntoFreeList( pxBlockToInsert )                                                                               \
     {                                                                                                                               \
         BlockLink_t * pxIterator;                                                                                                   \
@@ -141,6 +151,7 @@ static void prvHeapInit( void ) PRIVILEGED_FUNCTION;
                                                                                                                                     \
         /* Iterate through the list until a block is found that has a larger size */                                                \
         /* than the block we are inserting. */                                                                                      \
+        /* 找到插入的内存块的大小比当前内存块的大小小的内存块，就是插入位置 */                                                            \
         for( pxIterator = &xStart; pxIterator->pxNextFreeBlock->xBlockSize < xBlockSize; pxIterator = pxIterator->pxNextFreeBlock ) \
         {                                                                                                                           \
             /* There is nothing to do here - just iterate to the correct position. */                                               \
@@ -224,6 +235,7 @@ void * pvPortMalloc( size_t xWantedSize )
                 pxPreviousBlock = &xStart;
                 pxBlock = xStart.pxNextFreeBlock;
 
+                // 找到第一个比xWantedSize大的内存块
                 while( ( pxBlock->xBlockSize < xWantedSize ) && ( pxBlock->pxNextFreeBlock != NULL ) )
                 {
                     pxPreviousBlock = pxBlock;
@@ -239,9 +251,11 @@ void * pvPortMalloc( size_t xWantedSize )
 
                     /* This block is being returned for use so must be taken out of the
                      * list of free blocks. */
+                    // 这里的链表操作相当于删除pxBlock节点，pxBlock节点的内存块已经被分配出去了
                     pxPreviousBlock->pxNextFreeBlock = pxBlock->pxNextFreeBlock;
 
                     /* If the block is larger than required it can be split into two. */
+                    // 确认找到的内存长度相对于xWantedSize是否太大了，如果大于xWantedSize(的一个裕量heapMINIMUM_BLOCK_SIZE)，则将剩余的内存块插入到空闲内存块链表中
                     if( ( pxBlock->xBlockSize - xWantedSize ) > heapMINIMUM_BLOCK_SIZE )
                     {
                         /* This block is to be split into two.  Create a new block
@@ -257,6 +271,7 @@ void * pvPortMalloc( size_t xWantedSize )
                         /* Insert the new block into the list of free blocks.
                          * The list of free blocks is sorted by their size, we have to
                          * iterate to find the right place to insert new block. */
+                        // 这里已经知道了插入位置，重新再调用是否会有些浪费时间
                         prvInsertBlockIntoFreeList( ( pxNewBlockLink ) );
                     }
 
@@ -326,6 +341,7 @@ void vPortFree( void * pv )
                 vTaskSuspendAll();
                 {
                     /* Add this block to the list of free blocks. */
+                    // 这里直接插入，不做任何的合并，最终内存分配的结果是内块的大小将会越来越小，内存碎片化
                     prvInsertBlockIntoFreeList( ( ( BlockLink_t * ) pxLink ) );
                     xFreeBytesRemaining += pxLink->xBlockSize;
                     traceFREE( pv, pxLink->xBlockSize );

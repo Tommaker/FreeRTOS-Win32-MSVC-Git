@@ -47,6 +47,8 @@
 #define configTICK_RATE_HZ						( 1000 ) /* In this non-real time simulated environment the tick frequency has to be at least a multiple of the Win32 tick frequency, and therefore very slow. */
 #define configMINIMAL_STACK_SIZE				( ( unsigned short ) 70 ) /* In this simulated case, the stack only has to hold one small structure as the real stack is part of the win32 thread. */
 #define configTOTAL_HEAP_SIZE					( ( size_t ) ( 490 * 1024 ) ) /* This demo tests heap_5 so places multiple blocks within this total heap size.  See mainREGION_1_SIZE to mainREGION_3_SIZE definitions in main.c. */
+
+// 设置任务的名称的字符串长度最大不超过12，注意创建任务的这个限制!!!
 #define configMAX_TASK_NAME_LEN					( 12 )
 #define configUSE_TRACE_FACILITY				1
 #define configIDLE_SHOULD_YIELD					1
@@ -78,6 +80,7 @@
 #define configTIMER_QUEUE_LENGTH				20
 #define configTIMER_TASK_STACK_DEPTH			( configMINIMAL_STACK_SIZE * 2 )
 
+// 任务优先级的最大值
 #define configMAX_PRIORITIES					( 7 )
 
 /* Run time stats gathering configuration options. */

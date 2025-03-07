@@ -12,6 +12,7 @@
 [Ll]og/
 [Ll]ogs/
 [Bb]uild/
+.vscode/
 
 # CodeWarrior temporary files
 *.tdt

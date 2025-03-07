@@ -276,9 +276,26 @@
 
     #endif /* MPU_WRAPPERS_INCLUDED_FROM_API_FILE */
 
-    #define PRIVILEGED_FUNCTION     __attribute__( ( section( "privileged_functions" ) ) )
-    #define PRIVILEGED_DATA         __attribute__( ( section( "privileged_data" ) ) )
-    #define FREERTOS_SYSTEM_CALL    __attribute__( ( section( "freertos_system_calls" ) ) )
+// 需要特权模式才能执行的函数（如直接操作硬件寄存器、访问内核数据结构等）强制链接到该内存段中。
+// 通过MPU配置，该段会被标记为仅允许特权模式访问，防止非特权任务直接调用这些敏感函数
+// 典型的场景：如硬件终端服务函数ISR、任务调度器逻辑、内存管理函数pvMalloc等
+    #define PRIVILEGED_FUNCTION __attribute__((section("privileged_functions")))
+
+// 存储需要受保护的数据（如任务控制块TCB、内核堆栈等），这些数据只能被特权代码访问。
+// MPU会将该段配置为禁止非特权代码的读写，避免数据被篡改
+// 典型数据：任务优先级列表、系统始终节拍计数器、内核关键配置参数
+    #define PRIVILEGED_DATA __attribute__((section("privileged_data")))
+
+// 将FreeRTOS系统调用接口（如xTaskCreate、vQueueSend）集中到该段中。
+// 用户任务在非特权模式下需通过此段内的函数入口发起请求，触发陷阱（trap）机制切换到特权模式执行，从而实现安全的权限隔离
+// 设计意义：防止用户任务直接调用特权函数，强制通过系统调用接口访问内核服务。便于MPU统一配置系统调用的内存访问权限
+    #define FREERTOS_SYSTEM_CALL __attribute__((section("freertos_system_calls")))
+
+// 如何实现上述的各个section的定义
+// 1. 在链接脚本中定义各个section的起始地址和大小
+// 2. 在启动文件中定义各个section的起始地址和大小
+// 3. 在MPU配置中定义各个section的访问权限
+// 4. 在代码中使用__attribute__((section("section_name")))定义函数和数据的section
 
 #else /* portUSING_MPU_WRAPPERS */
 

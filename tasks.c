@@ -44,6 +44,7 @@
 /* The default definitions are only available for non-MPU ports. The
  * reason is that the stack alignment requirements vary for different
  * architectures.*/
+/* 若是MPU平台，则平台之间的栈对齐要求差异大，无法使用默认的栈对齐宏 */
 #if ( ( configSUPPORT_STATIC_ALLOCATION == 1 ) && ( configKERNEL_PROVIDED_STATIC_MEMORY == 1 ) && ( portUSING_MPU_WRAPPERS != 0 ) )
     #error configKERNEL_PROVIDED_STATIC_MEMORY cannot be set to 1 when using an MPU port. The vApplicationGet*TaskMemory() functions must be provided manually.
 #endif
@@ -117,6 +118,7 @@
  * The value used to fill the stack of a task when the task is created.  This
  * is used purely for checking the high water mark for tasks.
  */
+// 将任务的栈中都填充为0xa5，用于检查任务的栈使用情况
 #define tskSTACK_FILL_BYTE                        ( 0xa5U )
 
 /* Bits used to record how a task's stack and TCB were allocated. */
@@ -128,7 +130,7 @@
  * value so the high water mark can be determined.  If none of the following are
  * set then don't fill the stack so there is no unnecessary dependency on memset. */
 #if ( ( configCHECK_FOR_STACK_OVERFLOW > 1 ) || ( configUSE_TRACE_FACILITY == 1 ) || ( INCLUDE_uxTaskGetStackHighWaterMark == 1 ) || ( INCLUDE_uxTaskGetStackHighWaterMark2 == 1 ) )
-    #define tskSET_NEW_STACKS_TO_KNOWN_VALUE    1
+    #define tskSET_NEW_STACKS_TO_KNOWN_VALUE    1  /* 控制将task的栈空间设置为已知的值，用于检查栈使用的最高点*/
 #else
     #define tskSET_NEW_STACKS_TO_KNOWN_VALUE    0
 #endif
@@ -164,6 +166,7 @@
 
 /* uxTopReadyPriority holds the priority of the highest priority ready
  * state task. */
+    /* 记录Ready状态任务的最高优先级*/
     #define taskRECORD_READY_PRIORITY( uxPriority ) \
     do {                                            \
         if( ( uxPriority ) > uxTopReadyPriority )   \
@@ -175,6 +178,9 @@
 /*-----------------------------------------------------------*/
 
     #if ( configNUMBER_OF_CORES == 1 )
+        /* 选择uxTopReadyPriority代表的最高优先级的任务，需要将uxTopReadyPriority代码的优先级的链表寻呼检查完，
+        若多个任务设置的优先级相同，则任何一个任务处于ready都会检查其他任务是否也处于ready状态，会造成循环的浪费。
+        */
         #define taskSELECT_HIGHEST_PRIORITY_TASK()                                       \
     do {                                                                                 \
         UBaseType_t uxTopPriority = uxTopReadyPriority;                                  \
@@ -210,6 +216,8 @@
 /* If configUSE_PORT_OPTIMISED_TASK_SELECTION is 1 then task selection is
  * performed in a way that is tailored to the particular microcontroller
  * architecture being used. */
+
+/* 优化点：优先级使用bit记录 */
 
 /* A port optimised version is provided.  Call the port defined macros. */
     #define taskRECORD_READY_PRIORITY( uxPriority )    portRECORD_READY_PRIORITY( ( uxPriority ), uxTopReadyPriority )
@@ -437,12 +445,14 @@ typedef struct tskTaskControlBlock       /* The old naming convention is used to
 
 /* The old tskTCB name is maintained above then typedefed to the new TCB_t name
  * below to enable the use of older kernel aware debuggers. */
+// Task Control Block, 任务控制区
 typedef tskTCB TCB_t;
 
 #if ( configNUMBER_OF_CORES == 1 )
     /* MISRA Ref 8.4.1 [Declaration shall be visible] */
     /* More details at: https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/main/MISRA.md#rule-84 */
     /* coverity[misra_c_2012_rule_8_4_violation] */
+    // 永远指向当前执行的任务
     portDONT_DISCARD PRIVILEGED_DATA TCB_t * volatile pxCurrentTCB = NULL;
 #else
     /* MISRA Ref 8.4.1 [Declaration shall be visible] */
@@ -456,6 +466,7 @@ typedef tskTCB TCB_t;
  * xDelayedTaskList1 and xDelayedTaskList2 could be moved to function scope but
  * doing so breaks some kernel aware debuggers and debuggers that rely on removing
  * the static qualifier. */
+// 不同优先的就绪任务插入到对应优先级Index所在的链表中
 PRIVILEGED_DATA static List_t pxReadyTasksLists[ configMAX_PRIORITIES ]; /**< Prioritised ready tasks. */
 PRIVILEGED_DATA static List_t xDelayedTaskList1;                         /**< Delayed tasks. */
 PRIVILEGED_DATA static List_t xDelayedTaskList2;                         /**< Delayed tasks (two lists are used - one for delays that have overflowed the current tick count. */
@@ -486,6 +497,7 @@ PRIVILEGED_DATA static List_t xPendingReadyList;                         /**< Ta
 PRIVILEGED_DATA static volatile UBaseType_t uxCurrentNumberOfTasks = ( UBaseType_t ) 0U;
 PRIVILEGED_DATA static volatile TickType_t xTickCount = ( TickType_t ) configINITIAL_TICK_COUNT;
 PRIVILEGED_DATA static volatile UBaseType_t uxTopReadyPriority = tskIDLE_PRIORITY;
+// 调度器是否处于运行状态，任务创建完成后才运行调度器
 PRIVILEGED_DATA static volatile BaseType_t xSchedulerRunning = pdFALSE;
 PRIVILEGED_DATA static volatile TickType_t xPendedTicks = ( TickType_t ) 0U;
 PRIVILEGED_DATA static volatile BaseType_t xYieldPendings[ configNUMBER_OF_CORES ] = { pdFALSE };
@@ -1635,6 +1647,9 @@ static void prvAddNewTaskToReadyList( TCB_t * pxNewTCB ) PRIVILEGED_FUNCTION;
         /* If the stack grows down then allocate the stack then the TCB so the stack
          * does not grow into the TCB.  Likewise if the stack grows up then allocate
          * the TCB then the stack. */
+        // 如果堆栈向下增长，则先分配堆栈，然后分配TCB，以便堆栈不会增长到TCB中。
+        // 同样，如果堆栈向上增长，则先分配TCB，然后分配堆栈。
+        // 这里内存申请顺序是为了避免栈溢出后，覆盖了TCB的内容!!!
         #if ( portSTACK_GROWTH > 0 )
         {
             /* Allocate space for the TCB.  Where the memory comes from depends on
@@ -1667,12 +1682,14 @@ static void prvAddNewTaskToReadyList( TCB_t * pxNewTCB ) PRIVILEGED_FUNCTION;
         }
         #else /* portSTACK_GROWTH */
         {
+            /* 堆栈向下增长，则先分配堆栈，然后分配TCB，以便堆栈不会增长到TCB中 */
             StackType_t * pxStack;
 
             /* Allocate space for the stack used by the task being created. */
             /* MISRA Ref 11.5.1 [Malloc memory assignment] */
             /* More details at: https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/main/MISRA.md#rule-115 */
             /* coverity[misra_c_2012_rule_11_5_violation] */
+            // 申请指定大小的栈空闲
             pxStack = pvPortMallocStack( ( ( ( size_t ) uxStackDepth ) * sizeof( StackType_t ) ) );
 
             if( pxStack != NULL )
@@ -1714,6 +1731,7 @@ static void prvAddNewTaskToReadyList( TCB_t * pxNewTCB ) PRIVILEGED_FUNCTION;
             }
             #endif /* tskSTATIC_AND_DYNAMIC_ALLOCATION_POSSIBLE */
 
+            // 初始化新创建的task
             prvInitialiseNewTask( pxTaskCode, pcName, uxStackDepth, pvParameters, uxPriority, pxCreatedTask, pxNewTCB, NULL );
         }
 
@@ -1733,6 +1751,7 @@ static void prvAddNewTaskToReadyList( TCB_t * pxNewTCB ) PRIVILEGED_FUNCTION;
 
         traceENTER_xTaskCreate( pxTaskCode, pcName, uxStackDepth, pvParameters, uxPriority, pxCreatedTask );
 
+        // 创建实际的任务
         pxNewTCB = prvCreateTask( pxTaskCode, pcName, uxStackDepth, pvParameters, uxPriority, pxCreatedTask );
 
         if( pxNewTCB != NULL )
@@ -1744,6 +1763,7 @@ static void prvAddNewTaskToReadyList( TCB_t * pxNewTCB ) PRIVILEGED_FUNCTION;
             }
             #endif
 
+            // 将创建的任务添加到就绪列表中
             prvAddNewTaskToReadyList( pxNewTCB );
             xReturn = pdPASS;
         }
@@ -1835,9 +1855,12 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
      * grows from high memory to low (as per the 80x86) or vice versa.
      * portSTACK_GROWTH is used to make the result positive or negative as required
      * by the port. */
+    // 若栈的生长方向是从高地址到低地址，则栈的顶部地址为栈的第一个元素
     #if ( portSTACK_GROWTH < 0 )
     {
+        // 获取栈顶的地址
         pxTopOfStack = &( pxNewTCB->pxStack[ uxStackDepth - ( configSTACK_DEPTH_TYPE ) 1 ] );
+        // 将栈顶地址向下对齐
         pxTopOfStack = ( StackType_t * ) ( ( ( portPOINTER_SIZE_TYPE ) pxTopOfStack ) & ( ~( ( portPOINTER_SIZE_TYPE ) portBYTE_ALIGNMENT_MASK ) ) );
 
         /* Check the alignment of the calculated top of stack is correct. */
@@ -1866,6 +1889,7 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
     #endif /* portSTACK_GROWTH */
 
     /* Store the task name in the TCB. */
+    // task name 不能超过12个字符(configMAX_TASK_NAME_LEN)，否则写不进去!
     if( pcName != NULL )
     {
         for( x = ( UBaseType_t ) 0; x < ( UBaseType_t ) configMAX_TASK_NAME_LEN; x++ )
@@ -1887,6 +1911,7 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
 
         /* Ensure the name string is terminated in the case that the string length
          * was greater or equal to configMAX_TASK_NAME_LEN. */
+        // 强制将最后一个位置写为0，当设置的task name长度正好为configMAX_TASK_NAME_LEN
         pxNewTCB->pcTaskName[ configMAX_TASK_NAME_LEN - 1U ] = '\0';
     }
     else
@@ -1897,6 +1922,7 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
     /* This is used as an array index so must ensure it's not too large. */
     configASSERT( uxPriority < configMAX_PRIORITIES );
 
+    /* 若设置的优先级大于配置的最大优先级，则将其优先级重新设置为最大优先级-1*/
     if( uxPriority >= ( UBaseType_t ) configMAX_PRIORITIES )
     {
         uxPriority = ( UBaseType_t ) configMAX_PRIORITIES - ( UBaseType_t ) 1U;
@@ -1988,6 +2014,7 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
         }
         #else /* portHAS_STACK_OVERFLOW_CHECKING */
         {
+            // 任务的栈初始化，设置task的函数指针
             pxNewTCB->pxTopOfStack = pxPortInitialiseStack( pxTopOfStack, pxTaskCode, pvParameters );
         }
         #endif /* portHAS_STACK_OVERFLOW_CHECKING */
@@ -6042,6 +6069,7 @@ static void prvInitialiseTaskLists( void )
 {
     UBaseType_t uxPriority;
 
+    // 初始化各个优先级的就绪任务列表
     for( uxPriority = ( UBaseType_t ) 0U; uxPriority < ( UBaseType_t ) configMAX_PRIORITIES; uxPriority++ )
     {
         vListInitialise( &( pxReadyTasksLists[ uxPriority ] ) );

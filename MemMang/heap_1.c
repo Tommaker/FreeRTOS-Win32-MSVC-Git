@@ -46,6 +46,7 @@
 
 #undef MPU_WRAPPERS_INCLUDED_FROM_API_FILE
 
+// 必须开启动态内存分配的支持
 #if ( configSUPPORT_DYNAMIC_ALLOCATION == 0 )
     #error This file must not be used if configSUPPORT_DYNAMIC_ALLOCATION is 0
 #endif
@@ -61,6 +62,7 @@
 
 /*-----------------------------------------------------------*/
 
+// 定义或声明一个静态数组ucHeap，用于存放RTOS的堆内存
 /* Allocate the memory for the heap. */
 #if ( configAPPLICATION_ALLOCATED_HEAP == 1 )
 
@@ -72,13 +74,15 @@
 #endif /* configAPPLICATION_ALLOCATED_HEAP */
 
 /* Index into the ucHeap array. */
+// 记录下一个空闲地址
 static size_t xNextFreeByte = ( size_t ) 0U;
 
 /*-----------------------------------------------------------*/
-
+// heap_1.c只对堆内存进行简单的分配，不支持释放
 void * pvPortMalloc( size_t xWantedSize )
 {
     void * pvReturn = NULL;
+    // 记录对齐后的堆内存首地址，首地址必须是portBYTE_ALIGNMENT_MASK的倍数
     static uint8_t * pucAlignedHeap = NULL;
 
     /* Ensure that blocks are always aligned. */
@@ -86,6 +90,7 @@ void * pvPortMalloc( size_t xWantedSize )
     {
         size_t xAdditionalRequiredSize;
 
+        // 调整xWantedSize的大小，使其满足字节对齐要求
         if( ( xWantedSize & portBYTE_ALIGNMENT_MASK ) != 0x00 )
         {
             /* Byte alignment required. */
@@ -105,6 +110,7 @@ void * pvPortMalloc( size_t xWantedSize )
 
     vTaskSuspendAll();
     {
+        // 若是首次分配地址，则需要取字节对齐的地址值，首地址必须是portBYTE_ALIGNMENT_MASK的倍数
         if( pucAlignedHeap == NULL )
         {
             /* Ensure the heap starts on a correctly aligned boundary. */
@@ -119,7 +125,9 @@ void * pvPortMalloc( size_t xWantedSize )
         {
             /* Return the next free byte then increment the index past this
              * block. */
+            // 获取到分配的地址，因为pucAlignedHeap和xNextFreeByte都是portBYTE_ALIGNMENT_MASK字节对齐的，所以可以直接返回
             pvReturn = pucAlignedHeap + xNextFreeByte;
+            // 记录下一个空闲地址
             xNextFreeByte += xWantedSize;
         }
 
@@ -139,7 +147,7 @@ void * pvPortMalloc( size_t xWantedSize )
     return pvReturn;
 }
 /*-----------------------------------------------------------*/
-
+// 不支持释放，释放将会导致断言
 void vPortFree( void * pv )
 {
     /* Memory cannot be freed using this scheme.  See heap_2.c, heap_3.c and
@@ -151,14 +159,14 @@ void vPortFree( void * pv )
     configASSERT( pv == NULL );
 }
 /*-----------------------------------------------------------*/
-
+// 只有一个状态变量，xNextFreeByte用于记录下一个空闲地址
 void vPortInitialiseBlocks( void )
 {
     /* Only required when static memory is not cleared. */
     xNextFreeByte = ( size_t ) 0;
 }
 /*-----------------------------------------------------------*/
-
+// 获取剩余的空闲的内存大小
 size_t xPortGetFreeHeapSize( void )
 {
     return( configADJUSTED_HEAP_SIZE - xNextFreeByte );

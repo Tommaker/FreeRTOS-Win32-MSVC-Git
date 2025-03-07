@@ -86,6 +86,7 @@
 #endif
 
 /* Set default value of configNUMBER_OF_CORES to 1 to use single core FreeRTOS. */
+// 配置运行FreeRTOS的核心数量，默认为1
 #ifndef configNUMBER_OF_CORES
     #define configNUMBER_OF_CORES    1
 #endif
@@ -2782,6 +2783,7 @@
     #define configUSE_PORT_OPTIMISED_TASK_SELECTION    0
 #endif
 
+// 使用使用Heap上的内存用于动态内存的分配
 #ifndef configAPPLICATION_ALLOCATED_HEAP
     #define configAPPLICATION_ALLOCATED_HEAP    0
 #endif
@@ -2825,6 +2827,7 @@
     #define configKERNEL_PROVIDED_STATIC_MEMORY    0
 #endif
 
+// 是否支持内存动态分配
 #ifndef configSUPPORT_DYNAMIC_ALLOCATION
     /* Defaults to 1 for backward compatibility. */
     #define configSUPPORT_DYNAMIC_ALLOCATION    1

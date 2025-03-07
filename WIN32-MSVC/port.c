@@ -233,14 +233,20 @@ StackType_t * pxPortInitialiseStack( StackType_t * pxTopOfStack,
 #pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
     /* Create the thread itself. */
+    // 调用windows系统重的CreateThread，这里才是真正的创建一个线程
     pxThreadState->pvThread = CreateThread( NULL, xStackSize, ( LPTHREAD_START_ROUTINE ) pxCode, pvParameters, CREATE_SUSPENDED | STACK_SIZE_PARAM_IS_A_RESERVATION, NULL );
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
 
     configASSERT( pxThreadState->pvThread ); /* See comment where TerminateThread() is called. */
+    // 调用windows系统的SetThreadAffinityMask设置线程的亲和性，这里设置为0x01，即只能在第一个CPU上运行
     SetThreadAffinityMask( pxThreadState->pvThread, 0x01 );
+    // SetThreadPriorityBoost 函数，设置线程的优先级提升属性。TRUE 表示禁用线程的优先级提升。
+    // 优先级提升是指当线程从等待状态变为就绪状态时，系统会临时提高其优先级，以便它能更快地获得 CPU 时间。
     SetThreadPriorityBoost( pxThreadState->pvThread, TRUE );
+
+    // 设置线程的优先级，这里设置为THREAD_PRIORITY_ABOVE_NORMAL
     SetThreadPriority( pxThreadState->pvThread, portTASK_THREAD_PRIORITY );
 
     return ( StackType_t * ) pxThreadState;

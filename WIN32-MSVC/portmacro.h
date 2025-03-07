@@ -93,6 +93,7 @@ typedef portSTACK_TYPE           StackType_t;
 #endif
 
 /* Hardware specifics. */
+// 栈生长的方向，小于0代表栈是从大地址到小地址生长，大于0代表栈是从小地址到大地址生长
 #define portSTACK_GROWTH          ( -1 )
 #define portTICK_PERIOD_MS        ( ( TickType_t ) 1000 / configTICK_RATE_HZ )
 #define portINLINE                __inline

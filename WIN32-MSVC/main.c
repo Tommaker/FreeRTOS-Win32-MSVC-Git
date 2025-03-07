@@ -253,6 +253,7 @@ void vApplicationMallocFailedHook( void )
      * (although it does not provide information on how the remaining heap might be
      * fragmented).  See http://www.freertos.org/a00111.html for more
      * information. */
+    // 这里的__LINE__和__FILE__永远是当前文件的行号和文件名，应该记录的是在调用pvPortMalloc()失败的地方的行号和文件名！
     vAssertCalled( __LINE__, __FILE__ );
 }
 /*-----------------------------------------------------------*/
@@ -377,7 +378,9 @@ static void prvSaveTraceFile( void )
     }
 }
 /*-----------------------------------------------------------*/
-
+// 使用了heap_5.c中的内存分配机制
+// 为什么这么判断：因为使用了三个不连续的内存区域，
+// 且prvInitialiseHeap函数中调用了vPortDefineHeapRegions函数，而vPortDefineHeapRegions函数是heap_5.c中的函数
 static void prvInitialiseHeap( void )
 {
 /* The Windows demo could create one large heap region, in which case it would
@@ -392,6 +395,7 @@ static void prvInitialiseHeap( void )
  * purposes. */
     static uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
     volatile uint32_t ulAdditionalOffset = 19; /* Just to prevent 'condition is always true' warnings in configASSERT(). */
+    // 三段不连续的内存区域，这正式heap_5.c中适合的内存分配机制
     const HeapRegion_t xHeapRegions[] =
     {
         /* Start address with dummy offsets						Size */
