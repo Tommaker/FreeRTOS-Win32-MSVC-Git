@@ -144,10 +144,15 @@ struct xLIST;
 struct xLIST_ITEM
 {
     listFIRST_LIST_ITEM_INTEGRITY_CHECK_VALUE           /**< Set to a known value if configUSE_LIST_DATA_INTEGRITY_CHECK_BYTES is set to 1. */
+    // 列出的值，大部分时间用于列表的升序排列
     configLIST_VOLATILE TickType_t xItemValue;          /**< The value being listed.  In most cases this is used to sort the list in ascending order. */
+    // 指向列表中的下一个ListItem_t
     struct xLIST_ITEM * configLIST_VOLATILE pxNext;     /**< Pointer to the next ListItem_t in the list. */
+    // 指向列表中的上一个ListItem_t
     struct xLIST_ITEM * configLIST_VOLATILE pxPrevious; /**< Pointer to the previous ListItem_t in the list. */
+    // 拥有此链表项的对象，通常是TCB
     void * pvOwner;                                     /**< Pointer to the object (normally a TCB) that contains the list item.  There is therefore a two way link between the object containing the list item and the list item itself. */
+    // 当前链表项所属于的链表
     struct xLIST * configLIST_VOLATILE pxContainer;     /**< Pointer to the list in which this list item is placed (if any). */
     listSECOND_LIST_ITEM_INTEGRITY_CHECK_VALUE          /**< Set to a known value if configUSE_LIST_DATA_INTEGRITY_CHECK_BYTES is set to 1. */
 };
@@ -174,7 +179,9 @@ typedef struct xLIST
     listFIRST_LIST_INTEGRITY_CHECK_VALUE      /**< Set to a known value if configUSE_LIST_DATA_INTEGRITY_CHECK_BYTES is set to 1. */
     /* 当前链表中节点的个数*/
     configLIST_VOLATILE UBaseType_t uxNumberOfItems;
+    // 用于遍历整个链表，每次在遍历的过程中都会指向当前遍历的节点（listGET_OWNER_OF_NEXT_ENTRY返回的节点）
     ListItem_t * configLIST_VOLATILE pxIndex; /**< Used to walk through the list.  Points to the last item returned by a call to listGET_OWNER_OF_NEXT_ENTRY (). */
+    // 链表最后一个有意义的链表项，通常用于标记链表的结尾
     MiniListItem_t xListEnd;                  /**< List item that contains the maximum possible item value meaning it is always at the end of the list and is therefore used as a marker. */
     listSECOND_LIST_INTEGRITY_CHECK_VALUE     /**< Set to a known value if configUSE_LIST_DATA_INTEGRITY_CHECK_BYTES is set to 1. */
 } List_t;
@@ -186,6 +193,7 @@ typedef struct xLIST
  * \page listSET_LIST_ITEM_OWNER listSET_LIST_ITEM_OWNER
  * \ingroup LinkedList
  */
+// 设置链表中的拥有者，一般是任务的TCB
 #define listSET_LIST_ITEM_OWNER( pxListItem, pxOwner )    ( ( pxListItem )->pvOwner = ( void * ) ( pxOwner ) )
 
 /*
@@ -195,6 +203,7 @@ typedef struct xLIST
  * \page listGET_LIST_ITEM_OWNER listSET_LIST_ITEM_OWNER
  * \ingroup LinkedList
  */
+// 获取链表项的拥有者TCB
 #define listGET_LIST_ITEM_OWNER( pxListItem )             ( ( pxListItem )->pvOwner )
 
 /*
@@ -204,6 +213,7 @@ typedef struct xLIST
  * \page listSET_LIST_ITEM_VALUE listSET_LIST_ITEM_VALUE
  * \ingroup LinkedList
  */
+// 设置链表项的排序值，用于递增的排序
 #define listSET_LIST_ITEM_VALUE( pxListItem, xValue )     ( ( pxListItem )->xItemValue = ( xValue ) )
 
 /*
@@ -214,6 +224,7 @@ typedef struct xLIST
  * \page listGET_LIST_ITEM_VALUE listGET_LIST_ITEM_VALUE
  * \ingroup LinkedList
  */
+// 获取链表项的排序值
 #define listGET_LIST_ITEM_VALUE( pxListItem )             ( ( pxListItem )->xItemValue )
 
 /*
@@ -223,6 +234,7 @@ typedef struct xLIST
  * \page listGET_LIST_ITEM_VALUE listGET_LIST_ITEM_VALUE
  * \ingroup LinkedList
  */
+// 获取指定链表头节点的排序值
 #define listGET_ITEM_VALUE_OF_HEAD_ENTRY( pxList )        ( ( ( pxList )->xListEnd ).pxNext->xItemValue )
 
 /*
@@ -231,6 +243,7 @@ typedef struct xLIST
  * \page listGET_HEAD_ENTRY listGET_HEAD_ENTRY
  * \ingroup LinkedList
  */
+// 获取指定链表的头结点
 #define listGET_HEAD_ENTRY( pxList )                      ( ( ( pxList )->xListEnd ).pxNext )
 
 /*
@@ -239,6 +252,7 @@ typedef struct xLIST
  * \page listGET_NEXT listGET_NEXT
  * \ingroup LinkedList
  */
+// 获取指定链表项的下一个节点
 #define listGET_NEXT( pxListItem )                        ( ( pxListItem )->pxNext )
 
 /*
@@ -247,6 +261,7 @@ typedef struct xLIST
  * \page listGET_END_MARKER listGET_END_MARKER
  * \ingroup LinkedList
  */
+// 获取指定链表的最后一个节点的指针
 #define listGET_END_MARKER( pxList )                      ( ( ListItem_t const * ) ( &( ( pxList )->xListEnd ) ) )
 
 /*
@@ -256,11 +271,13 @@ typedef struct xLIST
  * \page listLIST_IS_EMPTY listLIST_IS_EMPTY
  * \ingroup LinkedList
  */
+// 判断指定链表是否为空
 #define listLIST_IS_EMPTY( pxList )                       ( ( ( pxList )->uxNumberOfItems == ( UBaseType_t ) 0 ) ? pdTRUE : pdFALSE )
 
 /*
  * Access macro to return the number of items in the list.
  */
+// 获取指定链表的链表项的个数
 #define listCURRENT_LIST_LENGTH( pxList )                 ( ( pxList )->uxNumberOfItems )
 
 /*
@@ -283,6 +300,7 @@ typedef struct xLIST
  * \page listGET_OWNER_OF_NEXT_ENTRY listGET_OWNER_OF_NEXT_ENTRY
  * \ingroup LinkedList
  */
+// 获取下一个节点的pvOwner
 #if ( configNUMBER_OF_CORES == 1 )
     #define listGET_OWNER_OF_NEXT_ENTRY( pxTCB, pxList )                                       \
     do {                                                                                       \
@@ -320,6 +338,7 @@ typedef struct xLIST
  * \page listREMOVE_ITEM listREMOVE_ITEM
  * \ingroup LinkedList
  */
+// 删除一个指定的节点
 #define listREMOVE_ITEM( pxItemToRemove ) \
     do {                                  \
         /* The list item knows which list it is in.  Obtain the list from the list \
@@ -360,6 +379,7 @@ typedef struct xLIST
  * \page listINSERT_END listINSERT_END
  * \ingroup LinkedList
  */
+// 插入一个节点到当前索引遍历顺序的末尾，所以是插入到pxIndex的前面，每个节点都会记录所属于的链表pxContainer
 #define listINSERT_END( pxList, pxNewListItem )           \
     do {                                                  \
         ListItem_t * const pxIndex = ( pxList )->pxIndex; \
@@ -401,6 +421,7 @@ typedef struct xLIST
  * \page listGET_OWNER_OF_HEAD_ENTRY listGET_OWNER_OF_HEAD_ENTRY
  * \ingroup LinkedList
  */
+// 获取头节点的Ownner
 #define listGET_OWNER_OF_HEAD_ENTRY( pxList )            ( ( &( ( pxList )->xListEnd ) )->pxNext->pvOwner )
 
 /*
@@ -412,6 +433,7 @@ typedef struct xLIST
  * @param pxListItem The list item we want to know if is in the list.
  * @return pdTRUE if the list item is in the list, otherwise pdFALSE.
  */
+// 判断链表项pxListItem是否是pxList中的节点
 #define listIS_CONTAINED_WITHIN( pxList, pxListItem )    ( ( ( pxListItem )->pxContainer == ( pxList ) ) ? ( pdTRUE ) : ( pdFALSE ) )
 
 /*
@@ -420,6 +442,7 @@ typedef struct xLIST
  * @param pxListItem The list item being queried.
  * @return A pointer to the List_t object that references the pxListItem
  */
+// 返回链表项所属的链表
 #define listLIST_ITEM_CONTAINER( pxListItem )            ( ( pxListItem )->pxContainer )
 
 /*
@@ -427,6 +450,7 @@ typedef struct xLIST
  * pxList->xListEnd.xItemValue is set to portMAX_DELAY by the vListInitialise()
  * function.
  */
+// 判断指定的链表是否已经初始化了
 #define listLIST_IS_INITIALISED( pxList )                ( ( pxList )->xListEnd.xItemValue == portMAX_DELAY )
 
 /*
@@ -439,6 +463,7 @@ typedef struct xLIST
  * \page vListInitialise vListInitialise
  * \ingroup LinkedList
  */
+// 链表初始化
 void vListInitialise( List_t * const pxList ) PRIVILEGED_FUNCTION;
 
 /*
@@ -450,6 +475,7 @@ void vListInitialise( List_t * const pxList ) PRIVILEGED_FUNCTION;
  * \page vListInitialiseItem vListInitialiseItem
  * \ingroup LinkedList
  */
+// 链表项初始化
 void vListInitialiseItem( ListItem_t * const pxItem ) PRIVILEGED_FUNCTION;
 
 /*
@@ -463,6 +489,7 @@ void vListInitialiseItem( ListItem_t * const pxItem ) PRIVILEGED_FUNCTION;
  * \page vListInsert vListInsert
  * \ingroup LinkedList
  */
+// 链表项插入到指定的列表
 void vListInsert( List_t * const pxList,
                   ListItem_t * const pxNewListItem ) PRIVILEGED_FUNCTION;
 
@@ -485,6 +512,7 @@ void vListInsert( List_t * const pxList,
  * \page vListInsertEnd vListInsertEnd
  * \ingroup LinkedList
  */
+// 链表项插入到指定的列表的末尾
 void vListInsertEnd( List_t * const pxList,
                      ListItem_t * const pxNewListItem ) PRIVILEGED_FUNCTION;
 
@@ -501,6 +529,7 @@ void vListInsertEnd( List_t * const pxList,
  * \page uxListRemove uxListRemove
  * \ingroup LinkedList
  */
+// 将指定链表项从列表中移除
 UBaseType_t uxListRemove( ListItem_t * const pxItemToRemove ) PRIVILEGED_FUNCTION;
 
 /* *INDENT-OFF* */

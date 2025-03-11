@@ -46,18 +46,6 @@
     <ClCompile Include="main.c">
       <Filter>Demo App Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\list.c">
-      <Filter>FreeRTOS Source\Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\queue.c">
-      <Filter>FreeRTOS Source\Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\tasks.c">
-      <Filter>FreeRTOS Source\Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\portable\MSVC-MingW\port.c">
-      <Filter>FreeRTOS Source\Source\Portable</Filter>
-    </ClCompile>
     <ClCompile Include="..\Common\Minimal\flop.c">
       <Filter>Demo App Source\Full_Demo\Common Demo Tasks</Filter>
     </ClCompile>
@@ -82,9 +70,6 @@
     <ClCompile Include="..\Common\Minimal\blocktim.c">
       <Filter>Demo App Source\Full_Demo\Common Demo Tasks</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\timers.c">
-      <Filter>FreeRTOS Source\Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\Common\Minimal\timerdemo.c">
       <Filter>Demo App Source\Full_Demo\Common Demo Tasks</Filter>
     </ClCompile>
@@ -103,20 +88,11 @@
     <ClCompile Include="Run-time-stats-utils.c">
       <Filter>Demo App Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\croutine.c">
-      <Filter>FreeRTOS Source\Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\Common\Minimal\QueueOverwrite.c">
       <Filter>Demo App Source\Full_Demo\Common Demo Tasks</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\Minimal\EventGroupsDemo.c">
       <Filter>Demo App Source\Full_Demo\Common Demo Tasks</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\event_groups.c">
-      <Filter>FreeRTOS Source\Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\portable\MemMang\heap_5.c">
-      <Filter>FreeRTOS Source\Source\Portable</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\Minimal\IntSemTest.c">
       <Filter>Demo App Source\Full_Demo\Common Demo Tasks</Filter>
@@ -142,15 +118,6 @@
     <ClCompile Include="..\Common\Minimal\AbortDelay.c">
       <Filter>Demo App Source\Full_Demo\Common Demo Tasks</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\FreeRTOS-Plus\Source\FreeRTOS-Plus-Trace\kernelports\FreeRTOS\trcKernelPort.c">
-      <Filter>Demo App Source\FreeRTOS+Trace Recorder</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\FreeRTOS-Plus\Source\FreeRTOS-Plus-Trace\trcSnapshotRecorder.c">
-      <Filter>Demo App Source\FreeRTOS+Trace Recorder</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\stream_buffer.c">
-      <Filter>FreeRTOS Source\Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\Common\Minimal\MessageBufferDemo.c">
       <Filter>Demo App Source\Full_Demo\Common Demo Tasks</Filter>
     </ClCompile>
@@ -166,52 +133,49 @@
     <ClCompile Include="..\Common\Minimal\TaskNotifyArray.c">
       <Filter>Demo App Source\Full_Demo\Common Demo Tasks</Filter>
     </ClCompile>
+    <ClCompile Include="..\FreeRTOS-Plus-Trace\kernelports\FreeRTOS\trcKernelPort.c">
+      <Filter>Demo App Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FreeRTOS-Plus-Trace\trcSnapshotRecorder.c">
+      <Filter>Demo App Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\croutine.c">
+      <Filter>Demo App Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\event_groups.c">
+      <Filter>Demo App Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MemMang\heap_5.c">
+      <Filter>Demo App Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\stream_buffer.c">
+      <Filter>Demo App Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timers.c">
+      <Filter>Demo App Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\list.c">
+      <Filter>Demo App Source</Filter>
+    </ClCompile>
+    <ClCompile Include="port.c">
+      <Filter>Demo App Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\queue.c">
+      <Filter>Demo App Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tasks.c">
+      <Filter>Demo App Source</Filter>
+    </ClCompile>
+    <ClCompile Include="socket_server_main.c">
+      <Filter>Demo App Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FreeRTOSConfig.h">
       <Filter>Configuration Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Source\include\croutine.h">
-      <Filter>FreeRTOS Source\Include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\include\FreeRTOS.h">
-      <Filter>FreeRTOS Source\Include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\include\list.h">
-      <Filter>FreeRTOS Source\Include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\include\portable.h">
-      <Filter>FreeRTOS Source\Include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\include\projdefs.h">
-      <Filter>FreeRTOS Source\Include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\include\queue.h">
-      <Filter>FreeRTOS Source\Include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\include\semphr.h">
-      <Filter>FreeRTOS Source\Include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\include\task.h">
-      <Filter>FreeRTOS Source\Include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\portable\MSVC-MingW\portmacro.h">
-      <Filter>FreeRTOS Source\Include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\include\timers.h">
-      <Filter>FreeRTOS Source\Include</Filter>
-    </ClInclude>
     <ClInclude Include="Trace_Recorder_Configuration\trcConfig.h">
       <Filter>Configuration Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\include\event_groups.h">
-      <Filter>FreeRTOS Source\Include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\include\message_buffer.h">
-      <Filter>FreeRTOS Source\Include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\include\stream_buffer.h">
-      <Filter>FreeRTOS Source\Include</Filter>
     </ClInclude>
     <ClInclude Include="Trace_Recorder_Configuration\trcKernelPortConfig.h">
       <Filter>Configuration Files</Filter>
@@ -222,10 +186,49 @@
     <ClInclude Include="Trace_Recorder_Configuration\trcSnapshotConfig.h">
       <Filter>Configuration Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\FreeRTOS-Plus\Source\FreeRTOS-Plus-Trace\Include\trcRecorder.h">
-      <Filter>Demo App Source\FreeRTOS+Trace Recorder\include</Filter>
+    <ClInclude Include="..\FreeRTOS-Plus-Trace\Include\trcKernelPort.h">
+      <Filter>Configuration Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\FreeRTOS-Plus\Source\FreeRTOS-Plus-Trace\Include\trcKernelPort.h">
+    <ClInclude Include="..\FreeRTOS-Plus-Trace\Include\trcRecorder.h">
+      <Filter>Configuration Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\event_groups.h">
+      <Filter>Configuration Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\message_buffer.h">
+      <Filter>Configuration Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\stream_buffer.h">
+      <Filter>Configuration Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\timers.h">
+      <Filter>Configuration Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\portable\MSVC-MingW\portmacro.h">
+      <Filter>Configuration Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\croutine.h">
+      <Filter>Configuration Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\FreeRTOS.h">
+      <Filter>Configuration Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\list.h">
+      <Filter>Configuration Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\portable.h">
+      <Filter>Configuration Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\projdefs.h">
+      <Filter>Configuration Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\queue.h">
+      <Filter>Configuration Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\semphr.h">
+      <Filter>Configuration Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\task.h">
       <Filter>Configuration Files</Filter>
     </ClInclude>
   </ItemGroup>

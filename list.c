@@ -45,7 +45,7 @@
 /*-----------------------------------------------------------
 * PUBLIC LIST API documented in list.h
 *----------------------------------------------------------*/
-
+// 初始化一个链表
 void vListInitialise( List_t * const pxList )
 {
     traceENTER_vListInitialise( pxList );
@@ -53,16 +53,19 @@ void vListInitialise( List_t * const pxList )
     /* The list structure contains a list item which is used to mark the
      * end of the list.  To initialise the list the list end is inserted
      * as the only list entry. */
+    // 初始化时，链表中只有一个元素，就是xListEnd
     pxList->pxIndex = ( ListItem_t * ) &( pxList->xListEnd );
 
     listSET_FIRST_LIST_ITEM_INTEGRITY_CHECK_VALUE( &( pxList->xListEnd ) );
 
     /* The list end value is the highest possible value in the list to
      * ensure it remains at the end of the list. */
+    // 将尾结点的xItemValue(就是排序值)设置为最大值，保持就是最后一个链表项
     pxList->xListEnd.xItemValue = portMAX_DELAY;
 
     /* The list end next and previous pointers point to itself so we know
      * when the list is empty. */
+    // 将尾节点的前驱和后继都设置为自己，这样就能知道当前链表是空的
     pxList->xListEnd.pxNext = ( ListItem_t * ) &( pxList->xListEnd );
     pxList->xListEnd.pxPrevious = ( ListItem_t * ) &( pxList->xListEnd );
 
@@ -85,7 +88,7 @@ void vListInitialise( List_t * const pxList )
     traceRETURN_vListInitialise();
 }
 /*-----------------------------------------------------------*/
-
+// 初始化一个链表项，将所属的链表设置为空
 void vListInitialiseItem( ListItem_t * const pxItem )
 {
     traceENTER_vListInitialiseItem( pxItem );
@@ -101,7 +104,9 @@ void vListInitialiseItem( ListItem_t * const pxItem )
     traceRETURN_vListInitialiseItem();
 }
 /*-----------------------------------------------------------*/
-
+// 将指定节点插入到指定链表的尾部，这里的尾部是当前索引的尾部
+// 例如：A->B->C->D-E->A，若pxIndex指向C，则这里的插入F到尾部是查到C和B的中间，这样F就是最后遍历到的那个节点!!!
+// 这么做的好处，避免每次都需要从头遍历，也避免插入的节点没有按照插入的顺序遍历
 void vListInsertEnd( List_t * const pxList,
                      ListItem_t * const pxNewListItem )
 {
@@ -135,7 +140,7 @@ void vListInsertEnd( List_t * const pxList,
     traceRETURN_vListInsertEnd();
 }
 /*-----------------------------------------------------------*/
-
+// 按照xItemValue从小到大的顺序遍历
 void vListInsert( List_t * const pxList,
                   ListItem_t * const pxNewListItem )
 {
@@ -213,7 +218,7 @@ void vListInsert( List_t * const pxList,
 }
 /*-----------------------------------------------------------*/
 
-
+// 将指定的节点从链表中删除
 UBaseType_t uxListRemove( ListItem_t * const pxItemToRemove )
 {
     /* The list item knows which list it is in.  Obtain the list from the list
@@ -229,6 +234,7 @@ UBaseType_t uxListRemove( ListItem_t * const pxItemToRemove )
     mtCOVERAGE_TEST_DELAY();
 
     /* Make sure the index is left pointing to a valid item. */
+    // 若是正在索引的节点被删除了，则设置为其前一个，用于下一次索引后面的节点
     if( pxList->pxIndex == pxItemToRemove )
     {
         pxList->pxIndex = pxItemToRemove->pxPrevious;

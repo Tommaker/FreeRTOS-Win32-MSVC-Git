@@ -49,7 +49,9 @@
 
 
 /* Constants used with the cRxLock and cTxLock structure members. */
+// 队列未锁定
 #define queueUNLOCKED             ( ( int8_t ) -1 )
+// 队列锁定了，但是目前还没有修改
 #define queueLOCKED_UNMODIFIED    ( ( int8_t ) 0 )
 #define queueINT8_MAX             ( ( int8_t ) 127 )
 
@@ -65,9 +67,13 @@
 #define uxQueueType               pcHead
 #define queueQUEUE_IS_MUTEX       NULL
 
+// 队列指针
 typedef struct QueuePointers
 {
+    // 它指向队列存储区域的末尾字节。通常情况下，队列存储区域会比实际需要存储的队列项目多分配一个字节，这个额外的字节用作标记，以便更好地管理队列的边界
     int8_t * pcTail;     /**< Points to the byte at the end of the queue storage area.  Once more byte is allocated than necessary to store the queue items, this is used as a marker. */
+
+    // 它指向上一次从队列中读取项目的位置。当结构体用作队列时，这个指针用于跟踪最近一次读取操作的位置，以便在下一次读取时能够正确地获取下一个项目
     int8_t * pcReadFrom; /**< Points to the last place that a queued item was read from when the structure is used as a queue. */
 } QueuePointers_t;
 
@@ -102,25 +108,36 @@ typedef struct SemaphoreData
  */
 typedef struct QueueDefinition /* The old naming convention is used to prevent breaking kernel aware debuggers. */
 {
+    // 队列存储区域的起始地址
     int8_t * pcHead;           /**< Points to the beginning of the queue storage area. */
+    // 队列的下一个可写入的地址
     int8_t * pcWriteTo;        /**< Points to the free next place in the storage area. */
 
+    // 队列或信号量的数据结构
     union
     {
         QueuePointers_t xQueue;     /**< Data required exclusively when this structure is used as a queue. */
         SemaphoreData_t xSemaphore; /**< Data required exclusively when this structure is used as a semaphore. */
     } u;
 
+    // 等待向队列发送数据的任务, 任务按照优先级存储
     List_t xTasksWaitingToSend;             /**< List of tasks that are blocked waiting to post onto this queue.  Stored in priority order. */
+    // 等待从队列接收数据的任务, 任务按照优先级存储
     List_t xTasksWaitingToReceive;          /**< List of tasks that are blocked waiting to read from this queue.  Stored in priority order. */
 
+    // 表示当前队列中的消息数量
     volatile UBaseType_t uxMessagesWaiting; /**< The number of items currently in the queue. */
+    // 队列中可以容纳的项目个数
     UBaseType_t uxLength;                   /**< The length of the queue defined as the number of items it will hold, not the number of bytes. */
+    // 队列中每个项目的大小
     UBaseType_t uxItemSize;                 /**< The size of each items that the queue will hold. */
 
+    // 存储在队列被锁定期间从队列接收的项目数量。当队列未被锁定时，这些变量被设置为 queueUNLOCKED。
     volatile int8_t cRxLock;                /**< Stores the number of items received from the queue (removed from the queue) while the queue was locked.  Set to queueUNLOCKED when the queue is not locked. */
+    // 存储在队列被锁定期间从队列传输的项目数量。当队列未被锁定时，这些变量被设置为 queueUNLOCKED。
     volatile int8_t cTxLock;                /**< Stores the number of items transmitted to the queue (added to the queue) while the queue was locked.  Set to queueUNLOCKED when the queue is not locked. */
 
+    // 指示队列的内存是否是静态分配的，静态分配的内存不应通过动态内存方式释放
     #if ( ( configSUPPORT_STATIC_ALLOCATION == 1 ) && ( configSUPPORT_DYNAMIC_ALLOCATION == 1 ) )
         uint8_t ucStaticallyAllocated; /**< Set to pdTRUE if the memory used by the queue was statically allocated to ensure no attempt is made to free the memory. */
     #endif
@@ -129,10 +146,11 @@ typedef struct QueueDefinition /* The old naming convention is used to prevent b
         struct QueueDefinition * pxQueueSetContainer;
     #endif
 
-    #if ( configUSE_TRACE_FACILITY == 1 )
-        UBaseType_t uxQueueNumber;
-        uint8_t ucQueueType;
-    #endif
+// 其中log跟踪功能时，uxQueueNumber 和 ucQueueType 分别表示队列编号和队列类型
+#if (configUSE_TRACE_FACILITY == 1)
+    UBaseType_t uxQueueNumber;
+    uint8_t ucQueueType;
+#endif
 } xQUEUE;
 
 /* The old xQUEUE name is maintained above then typedefed to the new Queue_t
@@ -255,19 +273,20 @@ static void prvInitialiseNewQueue( const UBaseType_t uxQueueLength,
  * Macro to mark a queue as locked.  Locking a queue prevents an ISR from
  * accessing the queue event lists.
  */
-#define prvLockQueue( pxQueue )                            \
-    taskENTER_CRITICAL();                                  \
-    {                                                      \
-        if( ( pxQueue )->cRxLock == queueUNLOCKED )        \
-        {                                                  \
-            ( pxQueue )->cRxLock = queueLOCKED_UNMODIFIED; \
-        }                                                  \
-        if( ( pxQueue )->cTxLock == queueUNLOCKED )        \
-        {                                                  \
-            ( pxQueue )->cTxLock = queueLOCKED_UNMODIFIED; \
-        }                                                  \
-    }                                                      \
-    taskEXIT_CRITICAL()
+// 锁定队列，以确保对队列的访问是线程安全的。这个宏通过进入和退出临界区来实现对队列的保护，锁定过程中禁止中断。
+#define prvLockQueue(pxQueue)                            \
+        taskENTER_CRITICAL();                                \
+        {                                                    \
+            if ((pxQueue)->cRxLock == queueUNLOCKED)         \
+            {                                                \
+                (pxQueue)->cRxLock = queueLOCKED_UNMODIFIED; \
+            }                                                \
+            if ((pxQueue)->cTxLock == queueUNLOCKED)         \
+            {                                                \
+                (pxQueue)->cTxLock = queueLOCKED_UNMODIFIED; \
+            }                                                \
+        }                                                    \
+        taskEXIT_CRITICAL()
 
 /*
  * Macro to increment cTxLock member of the queue data structure. It is

@@ -53,7 +53,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <DisableLanguageExtensions>false</DisableLanguageExtensions>
       <AdditionalOptions>/wd4210 %(AdditionalOptions)</AdditionalOptions>
-      <DisableSpecificWarnings>4574;4820;4668;4255;4710;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4574;4820;4668;4255;4710;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
